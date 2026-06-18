@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import gradio as gr
 import pandas as pd 
 from sklearn.metrics import (accuracy_score,precision_score,f1_score,recall_score)
 from datasets import Dataset
@@ -7,6 +8,9 @@ from transformers import AutoTokenizer
 from transformers import AutoModelForSequenceClassification
 from transformers import Trainer
 from transformers import TrainingArguments
+
+
+
 
 def compute_metrics(eval_pred):
     logits,label = eval_pred
@@ -39,6 +43,14 @@ def evaluate(tokenized_dataset,model):
     print("\nTHE EVALUATIONS ARE : ")
     print("---------------------\n")
     print(evaluation)
+    loss=evaluation['eval_loss']
+    acc=evaluation['eval_accuracy']
+    pre=evaluation['eval_precision']
+    rec=evaluation['eval_recall']
+    f1=evaluation['eval_f1_score']
+
+    return loss,acc,pre,rec,f1
+
 
 def predict(tokenized_dataset,model):
     labels = tokenized_dataset["labels"]
@@ -54,12 +66,15 @@ def predict(tokenized_dataset,model):
     predictions = trainer.predict(tokenized_dataset)
     predictions = predictions.predictions
     predictions = np.argmax(predictions,axis=1)
+    acc = accuracy_score(labels,predictions)
+    print(f"ACCURACY IS : {acc}")
+    return acc
 
-    print(f"ACCURACY IS : {accuracy_score(labels,predictions)}")
-
-
-def main():
-    df_test = pd.read_csv(r"..\datasets\bert_movie_review\test.csv")
+def main(file_obj):
+    if file_obj is None:
+        return " Please upload a valid file "
+    file_path = file_obj.name
+    df_test = pd.read_csv(file_path)
     df_test['labels'] = df_test['labels'].replace("neg",0).replace("pos",1)
     print(df_test.head())
 
@@ -113,8 +128,8 @@ def main():
         batched = True
     )
 
-    # evaluate(tokenized_dataset,model)
-    predict(tokenized_dataset,model)
+    return evaluate(tokenized_dataset,model)
+    #return predict(tokenized_dataset,model)
 
   
 
@@ -122,4 +137,17 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    iface = gr.Interface(
+        fn = main,
+        inputs = gr.File(file_types = ['.csv'],label="UPLOAD DOCUMENT FOR PREDICTION"),
+        outputs = [
+            gr.Textbox(label="EVALUATION LOSS : "),
+            gr.Textbox(label="ACCURACY :"),
+            gr.Textbox(label="PRECISION : "),
+            gr.Textbox(label="RECALL : "),
+            gr.Textbox(label="F1 SCORE : ")
+        ]
+    )
+    
+    iface.launch()
+
