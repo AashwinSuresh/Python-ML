@@ -52,11 +52,18 @@ def run_with_batching(model,optimizer,loss_fn,x_train,y_train_target):
     print("+------------------------------+------------------------------+")
 
     epochs = 1000
+
     ########
     fig1,ax1 = plt.subplots()
     fig2,ax2 = plt.subplots()
-    sine_real,=ax1.plot([],[],linestyle='--',label='Sine Graph')         
-    sine_pred,=ax1.plot([],[],color='red',label='Predicted Sine curve')
+    fig3,ax3 = plt.subplots()
+
+    sin_real,=ax1.plot([],[],linestyle='--',label='Sin Curve')         
+    sin_pred,=ax1.plot([],[],color='red',label='Predicted Sin Curve')
+
+    cos_real,=ax3.plot([],[],linestyle='--',label='Cos Curve')
+    cos_pred,=ax3.plot([],[],color='red',label='Predicted Cos Curve')
+
     loss_gr, = ax2.plot([],[],color='blue',label="Loss Calculated")
     ax1.legend()
     ax2.legend()
@@ -66,15 +73,23 @@ def run_with_batching(model,optimizer,loss_fn,x_train,y_train_target):
 
     ax2.set_xlim(0,epochs+2)
     ax2.set_ylim(0,0.7)
-    sine_real.set_data(x_train.detach().cpu().numpy(),y_train_target.detach().cpu().numpy())
+
+    ax3.set_xlim(x_train.min().item(),x_train.max().item())
+    ax3.set_ylim(-1,1)
+
+    sin_real.set_data(x_train.detach().cpu().numpy(),y_train_target[:,0].detach().cpu().numpy())
+    cos_real.set_data(x_train.detach().cpu().numpy(),y_train_target[:,1].detach().cpu().numpy())
     ########
+
     start_time = t.perf_counter()
     steps=[]
     loss_values=[]
     global_steps = 0
-    for epoch in range(1,epochs+1):     #it performs 1000 updates (10 in each epoch)
+    for epoch in range(epochs+1):     #it performs 1000 updates (10 in each epoch)
         x=[]
-        y=[]
+        y_sine=[]
+        y_cose=[]
+        y_tan=[]
         for x_batch,y_batch in loader:
 
             y_pred = model(x_batch)
@@ -90,17 +105,20 @@ def run_with_batching(model,optimizer,loss_fn,x_train,y_train_target):
 
             ############
             x.extend(x_batch.detach().cpu().numpy())
-            y.extend(y_pred.detach().cpu().numpy())
+            y_sine.extend(y_pred[:,0].detach().cpu().numpy())
+            y_cose.extend(y_pred[:,1].detach().cpu().numpy())
             ############
-        if epoch % 100 == 0:
+        if epoch % 50 == 0:
             ##################
-            sine_pred.set_data(x,y)
-            steps.append(global_steps)
+            sin_pred.set_data(x,y_sine)
+            cos_pred.set_data(x,y_cose)
+
+            steps.append(epoch)
             loss_values.append(loss.item())
+
             loss_gr.set_data(steps,loss_values)
-            global_steps+=10
             ax2.set_title(f"EPOCH : {epoch}/{epochs} \n LOSS : {loss.item()}")
-            yield fig1,fig2
+            yield fig1,fig2,fig3
             ##################
 
             print(f"|{epoch:<30}|{round(loss.item(),4):<30}|")
@@ -111,16 +129,24 @@ def run_with_batching(model,optimizer,loss_fn,x_train,y_train_target):
 
 
 def main():
-    x_train = torch.linspace(-1.4,1.4,10000).unsqueeze(1)
-    y_train_target = torch.sin(x_train)
+    x_train = torch.linspace(-torch.pi,torch.pi,1000).unsqueeze(1).to('cuda')
+    # x_train = torch.randn(1000,1).to('cuda')
+    y1=torch.sin(x_train)
+    y2=torch.cos(x_train)
+    
+    y_train_target = torch.cat([y1,y2],dim=1)
 
     # x_test = torch.randn(50000,1).to('cuda')
     # y_test_target = torch.sin(x_test)
 
     model = nn.Sequential(
         nn.Linear(1,25), 
-        nn.ReLU(), 
-        nn.Linear(25,1) 
+        nn.Tanh(), 
+        nn.Linear(25,15),
+        nn.Tanh(),
+        nn.Linear(15,10),
+        nn.GELU(),
+        nn.Linear(10,2)
     )
 
     model.to('cuda')
@@ -142,14 +168,16 @@ def main():
 
 with gr.Blocks() as demo:
     gr.Markdown("TRIGONOMETRIC PREDICTION MODEL")
-    with gr.Row():
-        sin_plot = gr.Plot()
+    with gr.Column():
+        with gr.Row():
+            sin_plot = gr.Plot()
+            cos_plot = gr.Plot()
         loss_plot = gr.Plot()
     start_bttn = gr.Button('START')
     start_bttn.click(
         fn=main,
         inputs=None,
-        outputs=[sin_plot,loss_plot]
+        outputs=[sin_plot,loss_plot,cos_plot]
     )
 
 demo.launch()
