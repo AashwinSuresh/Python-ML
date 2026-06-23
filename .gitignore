@@ -2,3 +2,5 @@ venv/
 models/
 results/
 test02.py
+matplotlib_test/
+__pycache__/
