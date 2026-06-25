@@ -108,43 +108,10 @@ def main():
             acc*=100    
             print(f"|{epoch:<30}|{round(loss.item(),4):<30}|{round(acc,2):<30}|")
     print("+------------------------------+------------------------------+------------------------------+")
-    print(f"\ntraining finished .... \n accuracy obtained : {acc:.3}")
+    print(f"\ntraining finished .... \n accuracy obtained : {acc:.3f}")
 
-    ###############
-    #   TESTING   #
-    ###############
-
-    images = np.load(r'.\data\test_images.npy')
-    labels = np.load(r'.\data\test_labels.npy')
-
-    images = torch.tensor(images).float()/255.0
-    images = images.unsqueeze(1).to('cuda')
-    labels = torch.tensor(labels).to('cuda')
-
-    start_time = time.perf_counter()
-
-    model.eval()    #to deactivate the dropout layer
-
-    outputs = model(images)
-
-    loss = loss_fn(outputs,labels)
-
-    predictions = torch.argmax(outputs,dim=1)
-
-    correct  = (predictions == labels).sum().item()
-    acc = accuracy_score(predictions.detach().cpu().tolist(),labels.detach().cpu().tolist())
-
-    end_time = time.perf_counter()
-    tot_time = end_time-start_time
-    print("+-------------------------+")
-    print(f"|{'TESTING':<25}|")
-    print("+-------------------------+")
-    print(f"|{f'total_inputs : {len(predictions.tolist())}':<25}|")
-    print(f"|{f'correct : {correct}':<25}|")
-    print(f"|{f'accuracy : {acc}':<25}|")
-    print(f"|{f'loss : {loss:.4f}':<25}|")
-    print(f"|{f'time_taken : {tot_time:.2f}s':<25}|")
-    print("+-------------------------+")
+    torch.save(model.state_dict(),r'models\mnist_cnn.pth')
+    print(f"model saved in folder models")
 
 if __name__ == '__main__':
     main()           

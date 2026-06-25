@@ -4,3 +4,4 @@ results/
 test02.py
 matplotlib_test/
 __pycache__/
+data/
